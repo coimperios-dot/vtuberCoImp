@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#00ff2a">
+<title>VTuber Multi-Modelo</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    height: 100vh; height: 100dvh;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #00ff2a;
+    color: #fff;
+    user-select: none;
+    overscroll-behavior: none;
+  }
+  #app {
+    display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh;
+    background: var(--bg-color, #00ff2a);
+    transition: background 0.3s;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* ===== TOP BAR ===== */
+  #top-bar {
+    flex-shrink: 0;
+    padding: 8px 10px 8px;
+    background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom-left-radius: 18px;
+    border-bottom-right-radius: 18px;
+    z-index: 10;
+  }
+  #main-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .main-btn {
+    flex: 1;
+    padding: 12px 0;
+    font-size: 15px;
+    font-weight: 700;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .main-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  #btn-settings {
+    flex: 0 0 52px;
+    font-size: 20px;
+    padding: 8px 0;
+  }
+  #btn-poses {
+    flex: 0 0 62px;
+    font-size: 15px;
+    padding: 12px 0;
+  }
+  #btn-poses.hidden { display: none; }
+  #mode-badge {
+    flex: 0 0 auto;
+    padding: 12px 14px;
+    font-size: 12px;
+    font-weight: 800;
+    border-radius: 12px;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(96,165,250,0.35);
+    border: 2px solid rgba(255,255,255,0.35);
+    color: #fff;
+    white-space: nowrap;
+  }
+  #mode-badge.live {
+    background: rgba(248,113,113,0.45);
+    animation: pulseLive 1.6s ease-in-out infinite;
+  }
+  @keyframes pulseLive {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.6; }
+  }
+
+  #audio-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+    align-items: stretch;
+  }
+  .audio-btn {
+    flex: 1;
+    padding: 9px 0;
+    font-size: 14px;
+    font-weight: 700;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .audio-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .audio-btn.active-blue { background: #60a5fa; border-color: #fff; }
+  .audio-btn.active-green { background: #4ade80; color: #0f172a; border-color: #fff; }
+  .audio-btn.active-red { background: #f87171; color: #fff; border-color: #fff; }
+
+  #audio-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding: 0 2px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255,255,255,0.85);
+  }
+  #audio-progress {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+  }
+  #audio-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #60a5fa, #4ade80);
+    transition: width 0.1s linear;
+    pointer-events: none;
+  }
+  #audio-progress-row.disabled { opacity: 0.35; }
+  #audio-progress-row.disabled #audio-progress { cursor: not-allowed; }
+  #audio-cur, #audio-dur { min-width: 38px; text-align: center; }
+
+  #status-row {
+    font-size: 11px;
+    color: rgba(255,255,255,0.85);
+    text-align: center;
+    padding: 2px 0 0;
+    min-height: 14px;
+  }
+  #status-row .sync-badge {
+    display: inline-block;
+    background: #4ade80;
+    color: #0f172a;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+    margin-left: 4px;
+  }
+
+  /* ===== STAGE ===== */
+  #stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    min-height: 0;
+  }
+  #avatar-wrapper {
+    will-change: transform;
+    transform: translate3d(0,0,0) scale(1);
+    transform-origin: center center;
+  }
+  #avatar-image {
+    max-width: 88vw;
+    max-height: 62vh;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out; /* Transición suave entre poses */
+  }
+  #avatar-image.with-shadow {
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+  }
+
+  /* ===== TRANSFORM PANEL ===== */
+  #transform-toggle {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.35);
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  #transform-toggle:active { transform: scale(0.92); }
+  #transform-toggle.active {
+    background: #4ade80;
+    color: #0f172a;
+    border-color: #fff;
+  }
+
+  #transform-panel {
+    position: absolute;
+    top: 62px;
+    left: 10px;
+    width: 250px;
+    max-width: calc(100vw - 20px);
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 12px;
+    z-index: 29;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    max-height: calc(100% - 80px);
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  #transform-panel.open { display: flex; }
+
+  .tp-section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.6;
+    font-weight: 700;
+    margin-top: 4px;
+    margin-bottom: -2px;
+  }
+  .tp-section-title:first-child { margin-top: 0; }
+
+  .tp-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tp-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0.9;
+  }
+  .tp-head .value {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+    font-weight: 600;
+  }
+  .tp-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .tp-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 22px;
+    background: transparent;
+    outline: none;
+  }
+  .tp-slider::-webkit-slider-runnable-track {
+    height: 6px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 3px;
+  }
+  .tp-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    margin-top: -7px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+  .tp-slider::-moz-range-track {
+    height: 6px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 3px;
+  }
+  .tp-slider::-moz-range-thumb {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+  .tp-all-btn {
+    width: 40px;
+    height: 24px;
+    border-radius: 7px;
+    border: 2px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .tp-all-btn.active {
+    background: #4ade80;
+    border-color: #fff;
+    color: #0f172a;
+  }
+  .tp-all-btn:active { transform: scale(0.92); }
+
+  .tp-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.15);
+    margin: 2px 0;
+  }
+  .tp-status {
+    font-size: 10.5px;
+    opacity: 0.75;
+    line-height: 1.4;
+    text-align: center;
+  }
+  .tp-clear {
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .tp-clear:active { transform: scale(0.97); }
+  .tp-clear.danger { background: #dc2626; }
+
+  /* ===== POSES FLOATING ===== */
+  #live-poses {
+    position: absolute;
+    display: none;
+    z-index: 15;
+    gap: 6px;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 6px;
+    background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 14px;
+    scrollbar-width: none;
+  }
+  #live-poses.visible { display: flex; }
+  #live-poses::-webkit-scrollbar { display: none; }
+
+  .live-pose-btn {
+    flex: 0 0 auto;
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.12);
+    border: 2px solid rgba(255,255,255,0.2);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 2px;
+    transition: transform 0.1s, background 0.15s;
+  }
+  .live-pose-btn:active { transform: scale(0.92); }
+  .live-pose-btn.active {
+    background: #4ade80;
+    color: #0f172a;
+    border-color: #fff;
+  }
+  .live-pose-btn .emoji { font-size: 20px; line-height: 1; }
+  .live-pose-btn .name {
+    font-size: 8px;
+    opacity: 0.9;
+    text-align: center;
+    line-height: 1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (min-width: 720px) {
+    #live-poses {
+      top: 50%;
+      right: 10px;
+      left: auto;
+      bottom: auto;
+      transform: translateY(-50%);
+      flex-direction: column;
+      overflow-x: hidden;
+      overflow-y: auto;
+      max-height: 88%;
+      width: 78px;
+      padding: 8px 6px;
+    }
+    .live-pose-btn {
+      width: 62px;
+      height: 62px;
+    }
+  }
+
+  /* ===== OVERLAYS ===== */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    z-index: 200;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .overlay.open { display: flex; }
+
+  .sheet {
+    width: 100%;
+    max-width: 560px;
+    max-height: 88vh;
+    max-height: 88dvh;
+    background: #1f2937;
+    color: #fff;
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
+    padding: 14px 18px 26px;
+    padding-bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    animation: slideDown 0.22s ease-out;
+  }
+  @keyframes slideDown {
+    from { transform: translateY(-30px); opacity: 0.5; }
+    to   { transform: translateY(0);     opacity: 1; }
+  }
+
+  .sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    position: sticky;
+    top: -14px;
+    background: #1f2937;
+    padding: 8px 0;
+    z-index: 1;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .sheet-header h2 { font-size: 16px; margin: 0; font-weight: 700; }
+  .close-btn {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: #fff;
+    font-size: 15px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.6;
+    margin: 16px 0 8px;
+    font-weight: 700;
+  }
+
+  .control { margin-bottom: 12px; }
+  .control label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 3px;
+    opacity: 0.95;
+  }
+  .control input[type="range"] {
+    width: 100%;
+    height: 26px;
+    -webkit-appearance: none;
+    background: transparent;
+  }
+  .control input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 3px;
+  }
+  .control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    margin-top: -9px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .color-row { display: flex; align-items: center; gap: 10px; }
+  .color-row input[type="color"] {
+    width: 48px; height: 34px;
+    border: none; border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .switch {
+    position: relative;
+    width: 46px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+  .switch input { display: none; }
+  .switch span {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.25);
+    border-radius: 13px;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .switch span::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s;
+  }
+  .switch input:checked + span { background: #4ade80; }
+  .switch input:checked + span::after { transform: translateX(20px); }
+
+  .action-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .action-btn {
+    flex: 1;
+    min-width: 130px;
+    padding: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    background: #4ade80;
+    color: #0f172a;
+    cursor: pointer;
+  }
+  .action-btn.rec { background: #f87171; color: #fff; }
+  .action-btn.danger { background: #dc2626; color: #fff; }
+  .action-btn.secondary {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+
+  .permission-box {
+    background: rgba(255,80,80,0.2);
+    border: 1px solid rgba(255,120,120,0.6);
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    display: none;
+  }
+  .permission-box.visible { display: block; }
+  .permission-box strong { display: block; margin-bottom: 6px; font-size: 13px; }
+  .permission-box button {
+    background: #fff; color: #0f172a; border: none;
+    border-radius: 8px; padding: 8px 12px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; margin-right: 6px; margin-top: 8px;
+  }
+
+  #mic-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  #mic-level {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #4ade80, #facc15, #f87171);
+    transition: width 0.05s;
+  }
+
+  #hint {
+    position: absolute;
+    top: 16px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.78);
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 13px;
+    text-align: center;
+    max-width: 90vw;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+    z-index: 100;
+  }
+  #hint.show { opacity: 1; }
+
+  #avatar-selector {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .avatar-opt {
+    flex: 1;
+    min-width: 60px;
+    padding: 10px 6px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+  }
+  .avatar-opt.active {
+    background: #fff;
+    color: #00ff2a;
+    border-color: #fff;
+  }
+
+  .file-info {
+    font-size: 11.5px;
+    opacity: 0.8;
+    margin-top: 6px;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+  .file-info.empty { opacity: 0.5; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="top-bar">
+    <div id="main-row">
+      <div id="mode-badge">📼 PREGRABADO</div>
+      <button id="btn-poses" class="main-btn" title="Mostrar/ocultar poses">🎭</button>
+      <button id="btn-settings" class="main-btn" title="Ajustes">⚙️</button>
+    </div>
+
+    <div id="audio-row">
+      <button class="audio-btn" id="btn-audio-load" title="Cargar audio">🎵</button>
+      <button class="audio-btn" id="btn-audio-play" disabled title="Play">▶</button>
+      <button class="audio-btn" id="btn-audio-pause" disabled title="Pausa">⏸</button>
+      <button class="audio-btn" id="btn-audio-stop" disabled title="Stop">⏹</button>
+      <button class="audio-btn" id="btn-vibe-toggle" title="Vibración">🔵</button>
+    </div>
+
+    <div id="audio-progress-row" class="disabled">
+      <span id="audio-cur">0:00</span>
+      <div id="audio-progress"><div id="audio-progress-fill"></div></div>
+      <span id="audio-dur">0:00</span>
+    </div>
+
+    <div id="status-row">
+      <span id="status-pose">Pose: normal</span>
+      <span id="status-sync" class="sync-badge" style="display:none">AUTO</span>
+    </div>
+  </div>
+
+  <div id="stage">
+    <div id="avatar-wrapper">
+      <img id="avatar-image" alt="avatar" src="" />
+    </div>
+
+    <button id="transform-toggle" title="Transformación">🎛️</button>
+    <div id="transform-panel">
+      <div class="tp-section-title">Transformación</div>
+      <div class="tp-row">
+        <div class="tp-head">
+          <span>🔍 Zoom</span>
+          <span class="value" id="tp-zoom-val">100%</span>
+        </div>
+        <div class="tp-controls">
+          <input type="range" class="tp-slider" id="tp-zoom" min="50" max="300" step="5" value="100">
+          <button class="tp-all-btn" id="tp-zoom-all" data-field="zoom">ALL</button>
+        </div>
+      </div>
+
+      <div class="tp-row">
+        <div class="tp-head">
+          <span>↔️ X</span>
+          <span class="value" id="tp-x-val">0 px</span>
+        </div>
+        <div class="tp-controls">
+          <input type="range" class="tp-slider" id="tp-x" min="-400" max="400" step="2" value="0">
+          <button class="tp-all-btn" id="tp-x-all" data-field="x">ALL</button>
+        </div>
+      </div>
+
+      <div class="tp-row">
+        <div class="tp-head">
+          <span>↕️ Y</span>
+          <span class="value" id="tp-y-val">0 px</span>
+        </div>
+        <div class="tp-controls">
+          <input type="range" class="tp-slider" id="tp-y" min="-400" max="400" step="2" value="0">
+          <button class="tp-all-btn" id="tp-y-all" data-field="y">ALL</button>
+        </div>
+      </div>
+
+      <div class="tp-divider"></div>
+      <div class="tp-section-title">Animación</div>
+
+      <div class="tp-row">
+        <div class="tp-head">
+          <span>📳 Vibración</span>
+          <span class="value" id="tp-vib-val">1.5 px</span>
+        </div>
+        <div class="tp-controls">
+          <!-- Rango ampliado para mayor vibración -->
+          <input type="range" class="tp-slider" id="tp-vib" min="0" max="15" step="0.5" value="1.5">
+          <button class="tp-all-btn" id="tp-vib-all" data-field="vib">ALL</button>
+        </div>
+      </div>
+
+      <div class="tp-row">
+        <div class="tp-head">
+          <span>🫨 Boost ×</span>
+          <span class="value" id="tp-boost-val">1.5x</span>
+        </div>
+        <div class="tp-controls">
+          <input type="range" class="tp-slider" id="tp-boost" min="1" max="10" step="0.1" value="1.5">
+          <button class="tp-all-btn" id="tp-boost-all" data-field="boost">ALL</button>
+        </div>
+      </div>
+
+      <div class="tp-divider"></div>
+      <div class="tp-status" id="tp-status">—</div>
+      <button class="tp-clear" id="tp-clear-pose">🧹 Limpiar esta pose</button>
+      <button class="tp-clear danger" id="tp-clear-all">🧹 Limpiar todas las poses</button>
+    </div>
+
+    <div id="live-poses"></div>
+    <div id="hint"></div>
+  </div>
+</div>
+
+<!-- MODAL: AJUSTES -->
+<div id="settings-overlay" class="overlay">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>⚙️ Ajustes</h2>
+      <button class="close-btn" id="btn-close-settings">✕ Cerrar</button>
+    </div>
+
+    <div class="section-title">Avatar</div>
+    <div class="avatar-selector" id="avatar-selector">
+      <button class="avatar-opt active" data-avatar="1">Avatar 1</button>
+      <button class="avatar-opt" data-avatar="2">Avatar 2</button>
+      <button class="avatar-opt" data-avatar="3">Avatar 3</button>
+      <button class="avatar-opt" data-avatar="4">Avatar 4</button>
+      <button class="avatar-opt" data-avatar="5">Avatar 5</button>
+    </div>
+    <div class="toggle-row" style="margin-top:10px;">
+      <span>Sombra del avatar</span>
+      <label class="switch">
+        <input type="checkbox" id="avatar-shadow">
+        <span></span>
+      </label>
+    </div>
+
+    <div class="section-title">Micrófono (Modo En Vivo)</div>
+    <div class="control">
+      <label>Nivel de entrada</label>
+      <div id="mic-bar"><div id="mic-level"></div></div>
+    </div>
+    <div class="control">
+      <label>Sensibilidad <span id="val-sens">50</span></label>
+      <input type="range" id="sens" min="1" max="100" value="50">
+    </div>
+    <div class="control">
+      <label>Retraso al cerrar boca <span id="val-hold">120 ms</span></label>
+      <input type="range" id="hold" min="0" max="1500" value="120" step="10">
+    </div>
+    <div class="action-row">
+      <button class="action-btn" id="btn-mic">🎤 Activar micrófono</button>
+    </div>
+
+    <div class="permission-box" id="perm-box">
+      <strong id="perm-title">⚠️ Permiso denegado</strong>
+      <div id="perm-body"></div>
+      <button id="perm-retry">🔄 Reintentar</button>
+      <button id="perm-reload">↻ Recargar</button>
+    </div>
+
+    <div class="section-title">Animación (global)</div>
+    <div class="control">
+      <label>Intervalo base de parpadeo <span id="val-blink">5 s</span></label>
+      <input type="range" id="blink" min="3" max="15" value="5" step="1">
+      <div style="font-size:11px;opacity:.6;margin-top:2px;line-height:1.4">
+        El parpadeo real es aleatorio entre <b id="val-blink-min">5</b> y <b id="val-blink-max">8</b> segundos.
+      </div>
+    </div>
+    <div class="control">
+      <label>Oscilación vertical <span id="val-oscv">2 px</span></label>
+      <input type="range" id="oscv" min="0" max="20" value="2" step="0.5">
+    </div>
+    <div class="control">
+      <label>Oscilación horizontal <span id="val-oscx">0 px</span></label>
+      <input type="range" id="oscx" min="0" max="20" value="0" step="0.5">
+    </div>
+    <div class="control">
+      <label>Velocidad de oscilación <span id="val-osct">1.0x</span></label>
+      <input type="range" id="osct" min="0.1" max="3" value="1" step="0.1">
+    </div>
+
+    <div class="section-title">Color de fondo</div>
+    <div class="control">
+      <div class="color-row">
+        <input type="color" id="bgcolor" value="#00ff2a">
+        <span style="font-size:12px;opacity:.8">Verde croma por defecto</span>
+      </div>
+    </div>
+
+    <div class="section-title">Audio</div>
+    <div class="file-info empty" id="audio-info">Sin audio cargado</div>
+    <div class="action-row">
+      <button class="action-btn secondary" id="btn-audio-load2">🎵 Cargar audio</button>
+      <button class="action-btn danger" id="btn-audio-clear">🗑️ Quitar audio</button>
+    </div>
+
+    <div class="section-title">Sincronización (solo Modo Pregrabado)</div>
+    <div class="file-info empty" id="sync-info">Sin archivo de sincronización</div>
+    <div class="action-row">
+      <button class="action-btn secondary" id="btn-sync-load2">📄 Cargar archivo</button>
+      <button class="action-btn danger" id="btn-sync-clear2">🗑️ Quitar archivo</button>
+    </div>
+
+    <div class="section-title">Poses</div>
+    <div class="file-info" id="poses-info">—</div>
+    <div class="action-row">
+      <button class="action-btn secondary" id="btn-reload-poses">🔄 Recargar poses</button>
+    </div>
+
+    <div class="section-title">Overrides por pose</div>
+    <div class="file-info" id="transform-info">—</div>
+    <div class="action-row">
+      <button class="action-btn secondary" id="btn-clear-pose-transform">🧹 Limpiar esta pose</button>
+      <button class="action-btn danger" id="btn-clear-all-transform">🧹 Limpiar todas</button>
+    </div>
+
+    <div class="section-title">Almacenamiento</div>
+    <div class="action-row">
+      <button class="action-btn danger" id="btn-wipe">🗑️ Borrar TODO</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="audio-input" accept="audio/*" style="display:none">
+<input type="file" id="sync-input" accept=".txt,.srt,text/plain" style="display:none">
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN
+   ============================================================ */
+const STORAGE_KEY = 'vtuber_multi_v3';
+const ASSETS_PATH = 'assets/';
+const IDB_NAME = 'vtuber_db';
+const IDB_STORE = 'files';
+const IDB_AUDIO_KEY = 'last_audio';
+const IDB_SYNC_KEY = 'last_sync';
+const DEFAULT_BG = '#00ff2a';
+
+const POSES = [
+  { id: 'normal',         emoji: '😀',       label: 'Normal' },
+  { id: 'serio',          emoji: '😠',       label: 'Serio' },
+  { id: 'interesante',    emoji: '😉',       label: 'Interesante' },
+  { id: 'esceptico',      emoji: '🤔',       label: 'Escéptico' },
+  { id: 'analitico',      emoji: '🧐',       label: 'Analítico' },
+  { id: 'advertencia',    emoji: '⚠️',       label: 'Advertencia' },
+  { id: 'sorprendido',    emoji: '😲',       label: 'Sorprendido' },
+  { id: 'celebracion',    emoji: '🏆',       label: 'Celebración' },
+  { id: 'incertidumbre',  emoji: '🤷🏻‍♂️',   label: 'Incertidumbre' },
+  { id: 'senalar',        emoji: '🫵🏻',      label: 'Señalar' },
+  { id: 'pc',             emoji: '🖥',       label: 'PC' },
+  { id: 'celular',        emoji: '📲',       label: 'Celular' },
+  { id: 'explicando',     emoji: '👨🏻‍🏫',   label: 'Explicando' },
+  { id: 'aprobacion',     emoji: '👍',       label: 'Aprobación' },
+  { id: 'desaprobacion',  emoji: '👎',       label: 'Desaprobación' },
+  { id: 'decepcion',      emoji: '🤦🏻‍♂️',   label: 'Decepción' },
+  { id: 'idea',           emoji: '💡',       label: 'Idea' },
+  { id: 'triste',         emoji: '😒',       label: 'Triste' },
+  { id: 'enojado',        emoji: '😡',       label: 'Enojado' }
+];
+const POSE_MAP = Object.fromEntries(POSES.map(p => [p.id, p]));
+const VARIANTS = ['AA', 'AB', 'BA', 'BB'];
+
+const ZOOM_MIN = 0.5, ZOOM_MAX = 3.0;
+const OFFSET_MIN = -400, OFFSET_MAX = 400;
+const VIB_MIN = 0, VIB_MAX = 15; // Rango de vibración aumentado
+const BOOST_MIN = 1.0, BOOST_MAX = 10.0;
+const BLINK_JITTER = 3;
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+const STATE = {
+  avatar: 1,
+  poseId: 'normal',
+  renderedPoseId: 'normal',
+  eyesOpen: true,
+  mouthOpen: false,
+  sensitivity: 50,
+  mouthHold: 120,
+  blinkBase: 5,
+  oscVertical: 2,
+  oscHorizontal: 0,
+  oscSpeed: 1.0,
+  bgColor: DEFAULT_BG,
+  /* Globals de transformación + animación por pose */
+  zoom: 1.0,
+  offsetX: 0,
+  offsetY: 0,
+  vibration: 1.5, // Vibración por defecto más notable
+  vibBoostMultiplier: 1.5,
+  /* Overrides por pose */
+  poseOverride: {},   // { [poseId]: { zoom?, x?, y?, vib?, boost? } }
+  allActive: {
+    zoom: false, x: false, y: false, vib: false, boost: false
+  },
+  /* UI */
+  vibBoostActive: false,
+  avatarShadow: false,
+  settingsOpen: false,
+  transformPanelOpen: false,
+  mode: 'prerecorded',
+  posesVisiblePrerecorded: false,
+  imageCache: {},
+  imageStatus: {},
+  syncEntries: [],
+  syncActive: false,
+  syncFileName: '',
+  currentSyncIndex: -1
+};
+
+/* Transformación + animación efectiva para una pose */
+function effectiveParams(poseId) {
+  const ov = STATE.poseOverride[poseId] || {};
+  return {
+    zoom:  (typeof ov.zoom  === 'number') ? ov.zoom  : STATE.zoom,
+    x:     (typeof ov.x     === 'number') ? ov.x     : STATE.offsetX,
+    y:     (typeof ov.y     === 'number') ? ov.y     : STATE.offsetY,
+    vib:   (typeof ov.vib   === 'number') ? ov.vib   : STATE.vibration,
+    boost: (typeof ov.boost === 'number') ? ov.boost : STATE.vibBoostMultiplier
+  };
+}
+
+/* ============================================================
+   DOM
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const avatarImg   = $('avatar-image');
+const avatarWrap  = $('avatar-wrapper');
+const appEl       = $('app');
+const micLevel    = $('mic-level');
+const hintEl      = $('hint');
+const posesInfo   = $('poses-info');
+const transformInfo = $('transform-info');
+const statusPose  = $('status-pose');
+const statusSync  = $('status-sync');
+const syncInfo    = $('sync-info');
+const audioInfo   = $('audio-info');
+const overlaySettings = $('settings-overlay');
+const modeBadge   = $('mode-badge');
+const livePosesEl = $('live-poses');
+const btnPosesTop = $('btn-poses');
+const btnVibeToggle = $('btn-vibe-toggle');
+const btnMic      = $('btn-mic');
+const permBox     = $('perm-box');
+const permTitle   = $('perm-title');
+const permBody    = $('perm-body');
+
+const tpToggle = $('transform-toggle');
+const tpPanel  = $('transform-panel');
+const tpZoom   = $('tp-zoom');
+const tpX      = $('tp-x');
+const tpY      = $('tp-y');
+const tpVib    = $('tp-vib');
+const tpBoost  = $('tp-boost');
+const tpZoomVal = $('tp-zoom-val');
+const tpXVal    = $('tp-x-val');
+const tpYVal    = $('tp-y-val');
+const tpVibVal  = $('tp-vib-val');
+const tpBoostVal = $('tp-boost-val');
+const tpStatus  = $('tp-status');
+
+/* ============================================================
+   INDEXEDDB
+   ============================================================ */
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+async function idbPut(key, value) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+async function idbGet(key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+async function idbDelete(key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+}
+
+/* ============================================================
+   IMÁGENES
+   ============================================================ */
+function imageKey(avatar, poseId, variant) {
+  return `${avatar}_${poseId}_${variant}`;
+}
+function imageUrl(avatar, poseId, variant) {
+  return `${ASSETS_PATH}${avatar}_${poseId}_${variant}.png`;
+}
+function getImage(avatar, poseId, variant, onReady) {
+  const key = imageKey(avatar, poseId, variant);
+  if (STATE.imageCache[key]) return STATE.imageCache[key];
+  if (STATE.imageStatus[key] === 'missing') return null;
+  const img = new Image();
+  img.onload = () => {
+    STATE.imageStatus[key] = 'loaded';
+    STATE.imageCache[key] = img;
+    if (onReady) onReady(img, true);
+  };
+  img.onerror = () => {
+    STATE.imageStatus[key] = 'missing';
+    if (onReady) onReady(null, false);
+  };
+  img.src = imageUrl(avatar, poseId, variant);
+  return null;
+}
+function preloadPose(avatar, poseId) {
+  VARIANTS.forEach(v => {
+    const key = imageKey(avatar, poseId, v);
+    if (STATE.imageCache[key] || STATE.imageStatus[key] === 'missing') return;
+    getImage(avatar, poseId, v);
+  });
+}
+async function preloadAllPoses(avatar) {
+  for (const pose of POSES) {
+    for (const v of VARIANTS) {
+      const key = imageKey(avatar, pose.id, v);
+      if (STATE.imageCache[key] || STATE.imageStatus[key] === 'missing') continue;
+      getImage(avatar, pose.id, v);
+      await new Promise(r => setTimeout(r, 15));
+    }
+  }
+}
+
+/* ============================================================
+   RENDER AVATAR
+   ============================================================ */
+function currentVariant() {
+  return (STATE.eyesOpen ? 'A' : 'B') + (STATE.mouthOpen ? 'A' : 'B');
+}
+function setAvatarSrc(src, forPoseId) {
+  avatarImg.src = src;
+  STATE.renderedPoseId = forPoseId;
+}
+function actualizarAvatar() {
+  const variant = currentVariant();
+  const targetPoseId = STATE.poseId;
+  const key = imageKey(STATE.avatar, targetPoseId, variant);
+  const cached = STATE.imageCache[key];
+
+  if (cached) {
+    setAvatarSrc(cached.src, targetPoseId);
+    return;
+  }
+
+  if (targetPoseId === STATE.renderedPoseId) {
+    const fallbackKey = imageKey(STATE.avatar, targetPoseId, 'AA');
+    const fallbackImg = STATE.imageCache[fallbackKey];
+    if (fallbackImg) avatarImg.src = fallbackImg.src;
+  }
+
+  if (STATE.imageStatus[key] !== 'missing') {
+    getImage(STATE.avatar, targetPoseId, variant, (img, ok) => {
+      if (ok) {
+        if (STATE.poseId === targetPoseId) setAvatarSrc(img.src, targetPoseId);
+      } else {
+        if (STATE.poseId === targetPoseId) setAvatarSrc(buildFallbackSVG(targetPoseId, variant), targetPoseId);
+      }
+    });
+    return;
+  }
+
+  setAvatarSrc(buildFallbackSVG(targetPoseId, variant), targetPoseId);
+}
+function buildFallbackSVG(poseId, variant) {
+  const pose = POSE_MAP[poseId] || { label: poseId, emoji: '?' };
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
+      <rect width="100%" height="100%" fill="#0f5132"/>
+      <text x="50%" y="45%" fill="#a7f3d0" font-size="22"
+            text-anchor="middle" font-family="sans-serif">
+        ${pose.emoji} ${pose.label}
+      </text>
+      <text x="50%" y="55%" fill="#6ee7b7" font-size="16"
+            text-anchor="middle" font-family="sans-serif">
+        ${variant} — sin imagen
+      </text>
+    </svg>`);
+}
+
+/* ============================================================
+   POSES FLOTANTES
+   ============================================================ */
+let livePosesBuilt = false;
+function buildLivePoses() {
+  livePosesEl.innerHTML = '';
+  POSES.forEach(pose => {
+    const btn = document.createElement('button');
+    btn.className = 'live-pose-btn';
+    btn.dataset.pose = pose.id;
+    btn.innerHTML = `<span class="emoji">${pose.emoji}</span><span class="name">${pose.label}</span>`;
+    btn.addEventListener('click', () => setPose(pose.id, true));
+    livePosesEl.appendChild(btn);
+  });
+  livePosesBuilt = true;
+  refreshLivePoses();
+}
+function refreshLivePoses() {
+  if (!livePosesBuilt) return;
+  livePosesEl.querySelectorAll('.live-pose-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.pose === STATE.poseId);
+  });
+}
+function updatePosesVisibility() {
+  let show = false;
+  if (STATE.mode === 'live') show = true;
+  else if (STATE.mode === 'prerecorded') show = STATE.posesVisiblePrerecorded;
+
+  if (show) {
+    if (!livePosesBuilt) buildLivePoses();
+    livePosesEl.classList.add('visible');
+    refreshLivePoses();
+  } else {
+    livePosesEl.classList.remove('visible');
+  }
+  btnPosesTop.classList.toggle('hidden', STATE.mode !== 'prerecorded');
+}
+
+/* ============================================================
+   POSES
+   ============================================================ */
+function setPose(poseId, userInitiated) {
+  STATE.poseId = poseId;
+  actualizarAvatar();
+  updateStatusRow();
+  refreshLivePoses();
+  updateTransformUI();
+  preloadPose(STATE.avatar, poseId);
+}
+function updateStatusRow() {
+  const pose = POSE_MAP[STATE.poseId] || { label: STATE.poseId, emoji: '?' };
+  const boostTxt = STATE.vibBoostActive ? ' 🫨' : '';
+  statusPose.textContent = `Pose: ${pose.emoji} ${pose.label}${boostTxt}`;
+  statusSync.style.display = (STATE.syncActive && STATE.mode === 'prerecorded') ? 'inline-block' : 'none';
+}
+
+/* ============================================================
+   PERSISTENCIA
+   ============================================================ */
+let saveTimer = null;
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveStateNow, 400);
+}
+function saveStateNow() {
+  try {
+    const payload = {
+      avatar: STATE.avatar,
+      poseId: STATE.poseId,
+      sensitivity: STATE.sensitivity,
+      mouthHold: STATE.mouthHold,
+      blinkBase: STATE.blinkBase,
+      oscVertical: STATE.oscVertical,
+      oscHorizontal: STATE.oscHorizontal,
+      oscSpeed: STATE.oscSpeed,
+      bgColor: STATE.bgColor,
+      zoom: STATE.zoom,
+      offsetX: STATE.offsetX,
+      offsetY: STATE.offsetY,
+      vibration: STATE.vibration,
+      vibBoostMultiplier: STATE.vibBoostMultiplier,
+      poseOverride: STATE.poseOverride,
+      allActive: STATE.allActive,
+      avatarShadow: STATE.avatarShadow,
+      transformPanelOpen: STATE.transformPanelOpen,
+      posesVisiblePrerecorded: STATE.posesVisiblePrerecorded
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (err) {
+    console.warn('Save error:', err);
+  }
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    STATE.avatar              = d.avatar ?? 1;
+    STATE.poseId              = d.poseId ?? 'normal';
+    STATE.sensitivity         = d.sensitivity ?? 50;
+    STATE.mouthHold           = d.mouthHold ?? 120;
+    STATE.blinkBase           = d.blinkBase ?? 5;
+    STATE.oscVertical         = d.oscVertical ?? 2;
+    STATE.oscHorizontal       = d.oscHorizontal ?? 0;
+    STATE.oscSpeed            = d.oscSpeed ?? 1;
+    STATE.bgColor             = d.bgColor ?? DEFAULT_BG;
+    STATE.zoom                = d.zoom ?? 1.0;
+    STATE.offsetX             = d.offsetX ?? 0;
+    STATE.offsetY             = d.offsetY ?? 0;
+    STATE.vibration           = d.vibration ?? 1.5;
+    STATE.vibBoostMultiplier  = d.vibBoostMultiplier ?? 1.5;
+    STATE.poseOverride        = (d.poseOverride && typeof d.poseOverride === 'object') ? d.poseOverride : {};
+    STATE.allActive           = {
+      zoom:  (d.allActive && typeof d.allActive.zoom  === 'boolean') ? d.allActive.zoom  : false,
+      x:     (d.allActive && typeof d.allActive.x     === 'boolean') ? d.allActive.x     : false,
+      y:     (d.allActive && typeof d.allActive.y     === 'boolean') ? d.allActive.y     : false,
+      vib:   (d.allActive && typeof d.allActive.vib   === 'boolean') ? d.allActive.vib   : false,
+      boost: (d.allActive && typeof d.allActive.boost === 'boolean') ? d.allActive.boost : false
+    };
+    STATE.avatarShadow        = d.avatarShadow ?? false;
+    STATE.transformPanelOpen  = d.transformPanelOpen ?? false;
+    STATE.posesVisiblePrerecorded = d.posesVisiblePrerecorded ?? false;
+    if (!POSE_MAP[STATE.poseId]) STATE.poseId = 'normal';
+    STATE.renderedPoseId = STATE.poseId;
+    return true;
+  } catch (e) { console.warn(e); return false; }
+}
+
+/* ============================================================
+   SYNC
+   ============================================================ */
+function parseTime(str) {
+  const parts = str.split(':').map(s => parseFloat(s));
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+  return NaN;
+}
+function extractQuoted(line) {
+  const first = line.indexOf('"');
+  if (first === -1) return '';
+  const last = line.lastIndexOf('"');
+  if (last <= first) return '';
+  return line.slice(first + 1, last).trim();
+}
+function parseSyncFile(text) {
+  const entries = [];
+  const lines = text.split(/\r?\n/);
+  for (const raw of lines) {
+    const original = raw;
+    let line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+
+    const quotedText = extractQuoted(line);
+    if (quotedText) {
+      const first = line.indexOf('"');
+      const last = line.lastIndexOf('"');
+      line = (line.slice(0, first) + line.slice(last + 1)).trim();
+    }
+
+    const parts = line.split(/\s+/);
+    if (parts.length < 2) continue;
+    const t = parseTime(parts[0]);
+    if (!isFinite(t)) continue;
+
+    const poseId = parts[1].toLowerCase();
+    if (!POSE_MAP[poseId]) {
+      console.warn(`Pose desconocida: "${poseId}" en línea: "${original.trim()}"`);
+      continue;
+    }
+
+    let boost = false;
+    if (parts[2]) {
+      const flag = parts[2].toUpperCase();
+      if (flag === 'V') boost = true;
+      else if (flag === 'N') boost = false;
+    }
+    entries.push({ time: t, poseId, boost, text: quotedText });
+  }
+  entries.sort((a, b) => a.time - b.time);
+  const dedup = [];
+  for (const e of entries) {
+    if (dedup.length && dedup[dedup.length-1].time === e.time) dedup[dedup.length-1] = e;
+    else dedup.push(e);
+  }
+  return dedup;
+}
+
+/* ============================================================
+   AUDIO
+   ============================================================ */
+let audioEl = null;
+let audioCtxFile = null;
+let audioSourceNode = null;
+let audioAnalyser = null;
+let audioDataArray = null;
+let audioLoaded = false;
+let audioPlaying = false;
+let audioRafId = null;
+let audioObjectUrl = null;
+let audioFileName = '';
+let audioFileBlob = null;
+let lastSavedPosition = 0;
+let positionSaveTimer = null;
+
+const btnAudioLoad  = $('btn-audio-load');
+const btnAudioPlay  = $('btn-audio-play');
+const btnAudioPause = $('btn-audio-pause');
+const btnAudioStop  = $('btn-audio-stop');
+const audioInput    = $('audio-input');
+const syncInput     = $('sync-input');
+const audioProgressRow = $('audio-progress-row');
+const audioProgress = $('audio-progress');
+const audioProgressFill = $('audio-progress-fill');
+const audioCur = $('audio-cur');
+const audioDur = $('audio-dur');
+
+function fmtSec(s) {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const r = Math.floor(s % 60);
+  return `${m}:${String(r).padStart(2, '0')}`;
+}
+function updateAudioUI() {
+  btnAudioPlay.disabled  = !audioLoaded || audioPlaying;
+  btnAudioPause.disabled = !audioLoaded || !audioPlaying;
+  btnAudioStop.disabled  = !audioLoaded;
+  btnAudioLoad.classList.toggle('active-blue', audioLoaded);
+  audioProgressRow.classList.toggle('disabled', !audioLoaded);
+
+  if (!audioLoaded) {
+    audioInfo.textContent = 'Sin audio cargado';
+    audioInfo.classList.add('empty');
+    audioProgressFill.style.width = '0%';
+    audioCur.textContent = '0:00';
+    audioDur.textContent = '0:00';
+  } else {
+    const dur = isFinite(audioEl.duration) ? audioEl.duration : 0;
+    const estado = audioPlaying ? '▶ sonando' : '⏸ detenido';
+    audioInfo.textContent = `🎵 ${audioFileName || 'audio'} · ${dur.toFixed(1)}s · ${estado}`;
+    audioInfo.classList.remove('empty');
+    audioDur.textContent = fmtSec(dur);
+    updateProgressBar();
+  }
+}
+function updateProgressBar() {
+  if (!audioLoaded || !audioEl) {
+    audioProgressFill.style.width = '0%';
+    audioCur.textContent = '0:00';
+    return;
+  }
+  const dur = isFinite(audioEl.duration) && audioEl.duration > 0 ? audioEl.duration : 0;
+  const cur = audioEl.currentTime || 0;
+  const pct = dur > 0 ? Math.min(100, (cur / dur) * 100) : 0;
+  audioProgressFill.style.width = pct + '%';
+  audioCur.textContent = fmtSec(cur);
+}
+function scheduleSavePosition() {
+  if (!audioLoaded || !audioEl) return;
+  clearTimeout(positionSaveTimer);
+  positionSaveTimer = setTimeout(() => {
+    lastSavedPosition = audioEl.currentTime || 0;
+    saveAudioMeta();
+  }, 1500);
+}
+async function saveAudioMeta() {
+  if (!audioFileBlob) return;
+  try {
+    await idbPut(IDB_AUDIO_KEY, {
+      name: audioFileName, blob: audioFileBlob,
+      position: lastSavedPosition || 0, savedAt: Date.now()
+    });
+  } catch (e) { console.warn(e); }
+}
+async function loadAudioFile(file, opts = {}) {
+  const { persist = true, startAt = 0, silent = false } = opts;
+  clearAudio(true);
+  audioFileBlob = file;
+  audioFileName = file.name || 'audio';
+  audioObjectUrl = URL.createObjectURL(file);
+
+  audioEl = new Audio();
+  audioEl.src = audioObjectUrl;
+  audioEl.crossOrigin = 'anonymous';
+  audioEl.preload = 'auto';
+
+  audioEl.addEventListener('loadedmetadata', () => {
+    if (startAt > 0 && isFinite(audioEl.duration) && startAt < audioEl.duration) {
+      try { audioEl.currentTime = startAt; } catch(e){}
+    }
+    updateAudioUI();
+    if (STATE.mode === 'prerecorded') applySyncAtTime(audioEl.currentTime);
+  });
+  audioEl.addEventListener('timeupdate', () => {
+    updateProgressBar();
+    scheduleSavePosition();
+    if (STATE.mode === 'prerecorded') applySyncAtTime(audioEl.currentTime);
+  });
+  audioEl.addEventListener('play', () => {
+    audioPlaying = true;
+    updateAudioUI();
+    if (STATE.mode === 'prerecorded' && !audioRafId) analizarAudio();
+  });
+  audioEl.addEventListener('pause', () => {
+    audioPlaying = false;
+    if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+    if (STATE.mode === 'prerecorded') setMouth(false);
+    updateAudioUI();
+  });
+  audioEl.addEventListener('ended', () => {
+    audioPlaying = false;
+    lastSavedPosition = 0;
+    saveAudioMeta();
+    if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+    if (STATE.mode === 'prerecorded') setMouth(false);
+    updateAudioUI();
+  });
+
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  audioCtxFile = new AudioCtx();
+  audioSourceNode = audioCtxFile.createMediaElementSource(audioEl);
+  audioAnalyser = audioCtxFile.createAnalyser();
+  audioAnalyser.fftSize = 512;
+  audioAnalyser.smoothingTimeConstant = 0.6;
+  audioSourceNode.connect(audioAnalyser);
+  audioAnalyser.connect(audioCtxFile.destination);
+  audioDataArray = new Uint8Array(audioAnalyser.fftSize);
+
+  audioLoaded = true;
+  audioPlaying = false;
+  updateAudioUI();
+
+  if (persist) {
+    try {
+      await idbPut(IDB_AUDIO_KEY, {
+        name: audioFileName, blob: file,
+        position: startAt || 0, savedAt: Date.now()
+      });
+    } catch (e) { console.warn(e); showHint('⚠️ No se pudo guardar el audio'); }
+  }
+  if (!silent) showHint(`🎵 Audio cargado: ${audioFileName}`);
+}
+async function restoreSavedAudio() {
+  try {
+    const saved = await idbGet(IDB_AUDIO_KEY);
+    if (!saved || !saved.blob) return false;
+    const file = new File([saved.blob], saved.name || 'audio', { type: saved.blob.type || 'audio/mpeg' });
+    await loadAudioFile(file, { persist: false, startAt: saved.position || 0, silent: true });
+    showHint(`🎵 Audio restaurado: ${saved.name || 'audio'}`);
+    return true;
+  } catch (e) { console.warn(e); return false; }
+}
+function playAudio() {
+  if (!audioLoaded || !audioEl) return;
+  if (STATE.mode === 'live') { showHint('⏸ Modo En Vivo: pausa el micrófono para usar el audio'); return; }
+  audioCtxFile.resume().catch(()=>{});
+  audioEl.play().then(() => {
+    audioPlaying = true;
+    updateAudioUI();
+    if (!audioRafId) analizarAudio();
+  }).catch(err => { console.error(err); showHint('No se pudo reproducir'); });
+}
+function pauseAudio() {
+  if (!audioLoaded || !audioEl) return;
+  audioEl.pause();
+  audioPlaying = false;
+  lastSavedPosition = audioEl.currentTime || 0;
+  saveAudioMeta();
+  if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+  if (STATE.mode === 'prerecorded') setMouth(false);
+  updateAudioUI();
+}
+function stopAudio() {
+  if (!audioLoaded || !audioEl) return;
+  audioEl.pause();
+  audioEl.currentTime = 0;
+  audioPlaying = false;
+  lastSavedPosition = 0;
+  saveAudioMeta();
+  if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+  if (STATE.mode === 'prerecorded') setMouth(false);
+  updateAudioUI();
+  if (STATE.mode === 'prerecorded') applySyncAtTime(0);
+}
+function clearAudio(silent) {
+  if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+  if (audioEl) { try { audioEl.pause(); } catch(e){} audioEl.src = ''; audioEl = null; }
+  if (audioSourceNode) { try { audioSourceNode.disconnect(); } catch(e){} audioSourceNode = null; }
+  if (audioAnalyser) { try { audioAnalyser.disconnect(); } catch(e){} audioAnalyser = null; }
+  if (audioCtxFile) { try { audioCtxFile.close(); } catch(e){} audioCtxFile = null; }
+  if (audioObjectUrl) { URL.revokeObjectURL(audioObjectUrl); audioObjectUrl = null; }
+  audioLoaded = false; audioPlaying = false;
+  audioDataArray = null; audioFileName = ''; audioFileBlob = null;
+  lastSavedPosition = 0;
+  setMouth(false);
+  updateAudioUI();
+  if (!silent) showHint('Audio quitado');
+}
+function analizarAudio() {
+  if (!audioAnalyser || !audioDataArray) return;
+  if (STATE.mode !== 'prerecorded') { audioRafId = null; return; }
+
+  audioAnalyser.getByteTimeDomainData(audioDataArray);
+  let sum = 0;
+  for (let i = 0; i < audioDataArray.length; i++) {
+    const v = (audioDataArray[i] - 128) / 128;
+    sum += v * v;
+  }
+  const rms = Math.sqrt(sum / audioDataArray.length);
+  micLevel.style.width = Math.min(100, rms * 250) + '%';
+  const threshold = 0.35 - (STATE.sensitivity / 100) * 0.33;
+  setMouth(rms > threshold);
+  if (audioPlaying && audioEl && !audioEl.paused) {
+    audioRafId = requestAnimationFrame(analizarAudio);
+  } else {
+    audioRafId = null;
+  }
+}
+function seekFromEvent(clientX) {
+  if (!audioLoaded || !audioEl) return;
+  const rect = audioProgress.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  const dur = isFinite(audioEl.duration) ? audioEl.duration : 0;
+  if (dur > 0) {
+    audioEl.currentTime = pct * dur;
+    lastSavedPosition = audioEl.currentTime;
+    saveAudioMeta();
+    updateProgressBar();
+    if (STATE.mode === 'prerecorded') applySyncAtTime(audioEl.currentTime);
+  }
+}
+audioProgress.addEventListener('click', e => seekFromEvent(e.clientX));
+audioProgress.addEventListener('touchstart', e => {
+  if (e.touches[0]) seekFromEvent(e.touches[0].clientX);
+}, { passive: true });
+
+btnAudioLoad.addEventListener('click', () => audioInput.click());
+$('btn-audio-load2').addEventListener('click', () => audioInput.click());
+audioInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadAudioFile(file, { persist: true, startAt: 0 });
+  e.target.value = '';
+});
+btnAudioPlay.addEventListener('click', playAudio);
+btnAudioPause.addEventListener('click', pauseAudio);
+btnAudioStop.addEventListener('click', stopAudio);
+$('btn-audio-clear').addEventListener('click', async () => {
+  clearAudio(false);
+  try { await idbDelete(IDB_AUDIO_KEY); } catch(e) { console.warn(e); }
+});
+
+/* ============================================================
+   MODO
+   ============================================================ */
+function setMode(newMode) {
+  if (STATE.mode === newMode) return;
+  STATE.mode = newMode;
+
+  if (newMode === 'live') {
+    if (audioPlaying) {
+      audioEl.pause();
+      audioPlaying = false;
+      lastSavedPosition = audioEl.currentTime || 0;
+      saveAudioMeta();
+    }
+    if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+    modeBadge.textContent = '🔴 EN VIVO';
+    modeBadge.classList.add('live');
+    updatePosesVisibility();
+    updateAudioUI();
+    updateStatusRow();
+    updateSyncUI();
+    showHint('🔴 Modo En Vivo — micrófono activo');
+  } else {
+    STATE.vibBoostActive = false;
+    updateVibeToggleUI();
+    setPose('normal', false);
+    modeBadge.textContent = '📼 PREGRABADO';
+    modeBadge.classList.remove('live');
+    updatePosesVisibility();
+    updateAudioUI();
+    updateStatusRow();
+    updateSyncUI();
+    if (audioLoaded && audioEl) applySyncAtTime(audioEl.currentTime);
+    showHint('📼 Modo Pregrabado');
+  }
+}
+
+/* ============================================================
+   SYNC
+   ============================================================ */
+function applySyncAtTime(t) {
+  if (STATE.mode !== 'prerecorded') return;
+  if (!STATE.syncActive || !STATE.syncEntries.length) return;
+  let idx = -1;
+  for (let i = 0; i < STATE.syncEntries.length; i++) {
+    if (STATE.syncEntries[i].time <= t + 0.001) idx = i;
+    else break;
+  }
+  if (idx === -1) idx = 0;
+  if (idx !== STATE.currentSyncIndex) {
+    STATE.currentSyncIndex = idx;
+    const e = STATE.syncEntries[idx];
+    setPose(e.poseId, false);
+    STATE.vibBoostActive = e.boost;
+    updateVibeToggleUI();
+    updateStatusRow();
+  }
+}
+function activateSync(entries, fileName) {
+  STATE.syncEntries = entries;
+  STATE.syncFileName = fileName || 'sincronización';
+  STATE.syncActive = true;
+  STATE.currentSyncIndex = -1;
+  if (STATE.mode === 'prerecorded') {
+    if (audioLoaded && audioEl) {
+      applySyncAtTime(audioEl.currentTime);
+    } else if (entries.length) {
+      setPose(entries[0].poseId, false);
+      STATE.vibBoostActive = entries[0].boost;
+      updateVibeToggleUI();
+    }
+  }
+  updateSyncUI();
+  updateStatusRow();
+}
+function deactivateSync() {
+  STATE.syncActive = false;
+  STATE.currentSyncIndex = -1;
+  updateSyncUI();
+  updateStatusRow();
+}
+function clearSync() {
+  STATE.syncEntries = [];
+  STATE.syncFileName = '';
+  deactivateSync();
+}
+function updateSyncUI() {
+  if (STATE.syncActive) {
+    syncInfo.textContent = `📄 ${STATE.syncFileName} · ${STATE.syncEntries.length} entradas`;
+    syncInfo.classList.remove('empty');
+  } else {
+    syncInfo.textContent = STATE.syncEntries.length
+      ? `📄 ${STATE.syncFileName} (${STATE.syncEntries.length} entradas, inactivo)`
+      : 'Sin archivo de sincronización';
+    syncInfo.classList.toggle('empty', !STATE.syncEntries.length);
+  }
+}
+function setSyncFile(file, opts = {}) {
+  const { persist = true, silent = false } = opts;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const text = e.target.result;
+    const entries = parseSyncFile(text);
+    if (!entries.length) {
+      showHint('⚠️ El archivo no tiene entradas válidas');
+      return;
+    }
+    activateSync(entries, file.name);
+    if (persist) {
+      try {
+        await idbPut(IDB_SYNC_KEY, { name: file.name, text, savedAt: Date.now() });
+      } catch (err) { console.warn(err); }
+    }
+    if (!silent) showHint(`📄 ${file.name}: ${entries.length} entradas`);
+  };
+  reader.readAsText(file);
+}
+async function restoreSavedSync() {
+  try {
+    const saved = await idbGet(IDB_SYNC_KEY);
+    if (!saved || !saved.text) return false;
+    const entries = parseSyncFile(saved.text);
+    if (!entries.length) return false;
+    activateSync(entries, saved.name);
+    showHint(`📄 Sincronización restaurada: ${saved.name}`);
+    return true;
+  } catch (e) { console.warn(e); return false; }
+}
+syncInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setSyncFile(file);
+  e.target.value = '';
+});
+$('btn-sync-load2').addEventListener('click', () => syncInput.click());
+$('btn-sync-clear2').addEventListener('click', async () => {
+  clearSync();
+  try { await idbDelete(IDB_SYNC_KEY); } catch(e){}
+  showHint('Sincronización quitada (modo manual)');
+});
+
+/* ============================================================
+   VIBRACIÓN BOOST (toggle global)
+   ============================================================ */
+function updateVibeToggleUI() {
+  if (STATE.vibBoostActive) {
+    btnVibeToggle.textContent = '🫨';
+    btnVibeToggle.classList.add('active-red');
+    btnVibeToggle.classList.remove('active-blue');
+  } else {
+    btnVibeToggle.textContent = '🔵';
+    btnVibeToggle.classList.remove('active-red');
+    btnVibeToggle.classList.add('active-blue');
+  }
+}
+btnVibeToggle.addEventListener('click', () => {
+  STATE.vibBoostActive = !STATE.vibBoostActive;
+  updateVibeToggleUI();
+  updateStatusRow();
+});
+updateVibeToggleUI();
+
+/* ============================================================
+   BOCA
+   ============================================================ */
+let mouthCloseTimer = null;
+function setMouth(open) {
+  if (open) {
+    if (mouthCloseTimer) { clearTimeout(mouthCloseTimer); mouthCloseTimer = null; }
+    if (!STATE.mouthOpen) {
+      STATE.mouthOpen = true;
+      actualizarAvatar();
+    }
+  } else {
+    if (mouthCloseTimer) return;
+    if (!STATE.mouthOpen) return;
+    mouthCloseTimer = setTimeout(() => {
+      mouthCloseTimer = null;
+      STATE.mouthOpen = false;
+      actualizarAvatar();
+    }, STATE.mouthHold);
+  }
+}
+
+/* ============================================================
+   MICRÓFONO
+   ============================================================ */
+let audioCtx = null, analyser = null, dataArray = null, micStream = null, micActive = false;
+
+async function checkPermission() {
+  if (!navigator.permissions || !navigator.permissions.query) return 'unknown';
+  try {
+    const status = await navigator.permissions.query({ name: 'microphone' });
+    return status.state;
+  } catch { return 'unknown'; }
+}
+function showPermissionHelp(title, bodyHtml) {
+  permTitle.textContent = title;
+  permBody.innerHTML = bodyHtml;
+  permBox.classList.add('visible');
+}
+function hidePermissionHelp() { permBox.classList.remove('visible'); }
+
+async function activarMicrofono() {
+  hidePermissionHelp();
+  const permState = await checkPermission();
+  if (permState === 'denied') {
+    showPermissionHelp('🚫 Permiso bloqueado previamente',
+      `Toca el <b>candado 🔒</b> o <b>ⓘ</b> junto a la URL → <b>Permisos</b> → <b>Micrófono</b> → <b>Permitir</b>.<br>Luego recarga.`);
+    return;
+  }
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    const source = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.6;
+    source.connect(analyser);
+    dataArray = new Uint8Array(analyser.fftSize);
+    micActive = true;
+    btnMic.textContent = '🔴 Micrófono activo (toca para detener)';
+    btnMic.classList.add('rec');
+    setMode('live');
+    medirAudio();
+  } catch (err) {
+    console.error(err);
+    let msg = 'Error: ' + err.message;
+    if (err.name === 'NotAllowedError') msg = 'Permiso rechazado. Toca el candado 🔒 y cámbialo a <b>Permitir</b>. Verifica HTTPS.';
+    else if (err.name === 'NotFoundError') msg = 'No se encontró micrófono.';
+    else if (err.name === 'NotReadableError') msg = 'El micrófono está en uso por otra app.';
+    showPermissionHelp('⚠️ No se pudo activar', msg);
+  }
+}
+function desactivarMicrofono() {
+  if (!micActive) return;
+  micActive = false;
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioCtx) { try { audioCtx.close(); } catch(e){} audioCtx = null; }
+  analyser = null; dataArray = null;
+  btnMic.textContent = '🎤 Activar micrófono';
+  btnMic.classList.remove('rec');
+  setMouth(false);
+  hidePermissionHelp();
+  setMode('prerecorded');
+}
+function medirAudio() {
+  if (!micActive) return;
+  if (STATE.mode !== 'live') { requestAnimationFrame(medirAudio); return; }
+
+  analyser.getByteTimeDomainData(dataArray);
+  let sum = 0;
+  for (let i = 0; i < dataArray.length; i++) {
+    const v = (dataArray[i] - 128) / 128;
+    sum += v * v;
+  }
+  const rms = Math.sqrt(sum / dataArray.length);
+  micLevel.style.width = Math.min(100, rms * 250) + '%';
+  const threshold = 0.35 - (STATE.sensitivity / 100) * 0.33;
+  setMouth(rms > threshold);
+  requestAnimationFrame(medirAudio);
+}
+$('perm-retry').addEventListener('click', () => { hidePermissionHelp(); activarMicrofono(); });$('perm-reload').addEventListener('click', () => location.reload());
+btnMic.addEventListener('click', () => {
+  if (!micActive) activarMicrofono();
+  else desactivarMicrofono();
+});
+
+/* ============================================================
+   PARPADEO
+   ============================================================ */
+let blinkTimer = null;
+function nextBlinkDelay() {
+  const base = STATE.blinkBase;
+  const extra = Math.random() * BLINK_JITTER;
+  return (base + extra) * 1000;
+}
+function scheduleBlink() {
+  clearTimeout(blinkTimer);
+  if (STATE.settingsOpen) return;
+  blinkTimer = setTimeout(() => {
+    if (STATE.settingsOpen) { scheduleBlink(); return; }
+    STATE.eyesOpen = false;
+    actualizarAvatar();
+    setTimeout(() => {
+      STATE.eyesOpen = true;
+      actualizarAvatar();
+      scheduleBlink();
+    }, 140);
+  }, nextBlinkDelay());
+}
+
+/* ============================================================
+   MOVIMIENTO — con vibración rápida y enérgica
+   ============================================================ */
+let phase = 0;
+let vibTargetX = 0, vibTargetY = 0;
+let vibCurrentX = 0, vibCurrentY = 0;
+let lastVibUpdate = 0;
+let frozenTransform = 'translate3d(0,0,0) scale(1)';
+
+function buildTransform(offsetX, offsetY) {
+  const p = effectiveParams(STATE.renderedPoseId);
+  return `translate3d(${offsetX + p.x}px, ${offsetY + p.y}px, 0) scale(${p.zoom})`;
+}
+function motionLoop(now) {
+  now = now || performance.now();
+  if (STATE.settingsOpen) {
+    avatarWrap.style.transform = frozenTransform;
+    requestAnimationFrame(motionLoop);
+    return;
+  }
+  phase += 0.04 * STATE.oscSpeed;
+  const yOsc = Math.sin(phase) * STATE.oscVertical;
+  const xOsc = Math.cos(phase * 0.8) * STATE.oscHorizontal;
+
+  // Actualización de vibración más rápida (cada 30ms en vez de 80ms)
+  if (now - lastVibUpdate > 30) {
+    lastVibUpdate = now;
+    const p = effectiveParams(STATE.renderedPoseId);
+    const mult = STATE.vibBoostActive ? p.boost : 1;
+    const amp = p.vib * mult;
+    vibTargetX = (Math.random() - 0.5) * 2 * amp;
+    vibTargetY = (Math.random() - 0.5) * 2 * amp;
+  }
+  // Interpolación más rápida (0.3) para mayor agilidad y fuerza en la vibración
+  vibCurrentX += (vibTargetX - vibCurrentX) * 0.3;
+  vibCurrentY += (vibTargetY - vibCurrentY) * 0.3;
+
+  frozenTransform = buildTransform(xOsc + vibCurrentX, yOsc + vibCurrentY);
+  avatarWrap.style.transform = frozenTransform;
+  requestAnimationFrame(motionLoop);
+}
+
+/* ============================================================
+   PANEL DE CONTROLES
+   ============================================================ */
+function clampZoom(v)  { return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v)); }
+function clampOffset(v){ return Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, Math.round(v))); }
+function clampVib(v)   { return Math.max(VIB_MIN, Math.min(VIB_MAX, v)); }
+function clampBoost(v) { return Math.max(BOOST_MIN, Math.min(BOOST_MAX, v)); }
+
+function updateTransformUI() {
+  const p = effectiveParams(STATE.poseId);
+  tpZoom.value = Math.round(p.zoom * 100);
+  tpZoomVal.textContent = Math.round(p.zoom * 100) + '%';
+  tpX.value = Math.round(p.x);
+  tpXVal.textContent = Math.round(p.x) + ' px';
+  tpY.value = Math.round(p.y);
+  tpYVal.textContent = Math.round(p.y) + ' px';
+  tpVib.value = p.vib;
+  tpVibVal.textContent = p.vib.toFixed(1) + ' px';
+  tpBoost.value = p.boost;
+  tpBoostVal.textContent = p.boost.toFixed(1) + 'x';
+
+  document.querySelectorAll('.tp-all-btn').forEach(btn => {
+    const f = btn.dataset.field;
+    btn.classList.toggle('active', !!STATE.allActive[f]);
+  });
+
+  const ov = STATE.poseOverride[STATE.poseId] || {};
+  const ovKeys = Object.keys(ov);
+  const hasOv = ovKeys.length > 0;
+  const totalOv = Object.keys(STATE.poseOverride).length;
+  tpStatus.textContent =
+    `Pose: ${STATE.poseId}${hasOv ? ' 🔒' : ''} · ` +
+    `Con override: ${totalOv}`;
+
+  transformInfo.textContent =
+    `Global → Zoom: ${Math.round(STATE.zoom * 100)}% · X: ${STATE.offsetX} · Y: ${STATE.offsetY} · Vib: ${STATE.vibration.toFixed(1)} · Boost: ${STATE.vibBoostMultiplier.toFixed(1)}x\n` +
+    `Pose actual (${STATE.poseId}) → ` +
+    `Zoom: ${Math.round(p.zoom * 100)}% · X: ${Math.round(p.x)} · Y: ${Math.round(p.y)} · Vib: ${p.vib.toFixed(1)} · Boost: ${p.boost.toFixed(1)}x` +
+    (hasOv ? ` · 🔒 override (${ovKeys.join(', ')})` : '') +
+    `\nPoses con override: ${totalOv}`;
+}
+
+function applyParamChange(field, value) {
+  if (field === 'zoom')  value = clampZoom(value);
+  else if (field === 'x') value = clampOffset(value);
+  else if (field === 'y') value = clampOffset(value);
+  else if (field === 'vib')   value = clampVib(value);
+  else if (field === 'boost') value = clampBoost(value);
+
+  if (STATE.allActive[field]) {
+    // Aplicar al global
+    switch (field) {
+      case 'zoom':  STATE.zoom = value; break;
+      case 'x':     STATE.offsetX = value; break;
+      case 'y':     STATE.offsetY = value; break;
+      case 'vib':   STATE.vibration = value; break;
+      case 'boost': STATE.vibBoostMultiplier = value; break;
+    }
+    // SOLUCIÓN PROBLEMA 1: Limpiar el override de este campo en todas las poses para que 'ALL' funcione de inmediato
+    for (const pid in STATE.poseOverride) {
+      if (STATE.poseOverride[pid] && field in STATE.poseOverride[pid]) {
+        delete STATE.poseOverride[pid][field];
+        if (Object.keys(STATE.poseOverride[pid]).length === 0) {
+          delete STATE.poseOverride[pid];
+        }
+      }
+    }
+  } else {
+    // Override de la pose actual
+    if (!STATE.poseOverride[STATE.poseId]) STATE.poseOverride[STATE.poseId] = {};
+    STATE.poseOverride[STATE.poseId][field] = value;
+  }
+  updateTransformUI();
+  scheduleSave();
+}
+
+tpZoom.addEventListener('input',  e => applyParamChange('zoom',  +e.target.value / 100));
+tpX.addEventListener('input',     e => applyParamChange('x',     +e.target.value));
+tpY.addEventListener('input',     e => applyParamChange('y',     +e.target.value));
+tpVib.addEventListener('input',   e => applyParamChange('vib',   +e.target.value));
+tpBoost.addEventListener('input', e => applyParamChange('boost', +e.target.value));
+
+document.querySelectorAll('.tp-all-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const f = btn.dataset.field;
+    STATE.allActive[f] = !STATE.allActive[f];
+    updateTransformUI();
+    scheduleSave();
+    showHint(STATE.allActive[f]
+      ? `ALL ${f.toUpperCase()} ON: cambios afectan a todas`
+      : `ALL ${f.toUpperCase()} OFF: cambios solo a "${STATE.poseId}"`);
+  });
+});
+
+tpToggle.addEventListener('click', () => {
+  STATE.transformPanelOpen = !STATE.transformPanelOpen;
+  tpPanel.classList.toggle('open', STATE.transformPanelOpen);
+  tpToggle.classList.toggle('active', STATE.transformPanelOpen);
+  scheduleSave();
+});
+
+function clearPoseOverride(poseId) {
+  if (STATE.poseOverride[poseId]) delete STATE.poseOverride[poseId];
+  updateTransformUI();
+  scheduleSave();
+}
+function clearAllOverrides() {
+  STATE.poseOverride = {};
+  STATE.zoom = 1.0;
+  STATE.offsetX = 0;
+  STATE.offsetY = 0;
+  STATE.vibration = 1.5;
+  STATE.vibBoostMultiplier = 1.5;
+  updateTransformUI();
+  scheduleSave();
+}
+
+$('tp-clear-pose').addEventListener('click', () => {
+  clearPoseOverride(STATE.poseId);
+  showHint(`🧹 Override de "${STATE.poseId}" borrado`);
+});
+$('tp-clear-all').addEventListener('click', () => {
+  if (!confirm('¿Limpiar TODOS los overrides de TODAS las poses y resetear globales?')) return;
+  clearAllOverrides();
+  showHint('🧹 Todos los overrides reseteados');
+});
+$('btn-clear-pose-transform').addEventListener('click', () => {
+  clearPoseOverride(STATE.poseId);
+  showHint(`🧹 Override de "${STATE.poseId}" borrado`);
+});
+$('btn-clear-all-transform').addEventListener('click', () => {
+  if (!confirm('¿Limpiar TODOS los overrides de TODAS las poses y resetear globales?')) return;
+  clearAllOverrides();
+  showHint('🧹 Todos los overrides reseteados');
+});
+
+/* ============================================================
+   BOTÓN POSES (Modo 1)
+   ============================================================ */
+btnPosesTop.addEventListener('click', () => {
+  if (STATE.mode !== 'prerecorded') return;
+  STATE.posesVisiblePrerecorded = !STATE.posesVisiblePrerecorded;
+  updatePosesVisibility();
+  scheduleSave();
+});
+
+/* ============================================================
+   AJUSTES
+   ============================================================ */
+function openSettings() {
+  STATE.settingsOpen = true;
+  overlaySettings.classList.add('open');
+  updateTransformUI();
+}
+function closeSettings() {
+  STATE.settingsOpen = false;
+  overlaySettings.classList.remove('open');
+  scheduleBlink();
+}
+$('btn-settings').addEventListener('click', openSettings);$('btn-close-settings').addEventListener('click', closeSettings);
+overlaySettings.addEventListener('click', e => {
+  if (e.target === overlaySettings) closeSettings();
+});
+
+document.querySelectorAll('.avatar-opt').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    document.querySelectorAll('.avatar-opt').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    STATE.avatar = parseInt(btn.dataset.avatar, 10);
+    STATE.imageCache = {};
+    STATE.imageStatus = {};
+    actualizarAvatar();
+    updatePosesInfo();
+    updateTransformUI();
+    scheduleSave();
+    preloadAllPoses(STATE.avatar).then(() => {
+      updatePosesInfo();
+      actualizarAvatar();
+      if (livePosesBuilt) refreshLivePoses();
+    });
+  });
+});
+
+$('sens').addEventListener('input', e => {
+  STATE.sensitivity = +e.target.value;
+  $('val-sens').textContent = STATE.sensitivity;
+  scheduleSave();
+});
+$('hold').addEventListener('input', e => {
+  STATE.mouthHold = +e.target.value;
+  $('val-hold').textContent = STATE.mouthHold + ' ms';
+  scheduleSave();
+});
+$('blink').addEventListener('input', e => {
+  STATE.blinkBase = +e.target.value;
+  $('val-blink').textContent = STATE.blinkBase + ' s';$('val-blink-min').textContent = STATE.blinkBase;
+  $('val-blink-max').textContent = STATE.blinkBase + BLINK_JITTER;
+  scheduleBlink(); scheduleSave();
+});
+$('oscv').addEventListener('input', e => {
+  STATE.oscVertical = +e.target.value;
+  $('val-oscv').textContent = STATE.oscVertical + ' px';
+  scheduleSave();
+});
+$('oscx').addEventListener('input', e => {
+  STATE.oscHorizontal = +e.target.value;
+  $('val-oscx').textContent = STATE.oscHorizontal + ' px';
+  scheduleSave();
+});
+$('osct').addEventListener('input', e => {
+  STATE.oscSpeed = +e.target.value;
+  $('val-osct').textContent = STATE.oscSpeed.toFixed(1) + 'x';
+  scheduleSave();
+});
+$('bgcolor').addEventListener('input', e => { STATE.bgColor = e.target.value; document.documentElement.style.setProperty('--bg-color', STATE.bgColor); appEl.style.background = STATE.bgColor; scheduleSave(); });$('avatar-shadow').addEventListener('change', e => {
+  STATE.avatarShadow = e.target.checked;
+  avatarImg.classList.toggle('with-shadow', STATE.avatarShadow);
+  scheduleSave();
+});
+
+$('btn-reload-poses').addEventListener('click', () => {
+  STATE.imageCache = {};
+  STATE.imageStatus = {};
+  actualizarAvatar();
+  updatePosesInfo();
+  showHint('Recargando poses...');
+  preloadAllPoses(STATE.avatar).then(() => {
+    updatePosesInfo();
+    actualizarAvatar();
+    if (livePosesBuilt) refreshLivePoses();
+    showHint('Poses recargadas');
+  });
+});
+
+$('btn-wipe').addEventListener('click', async () => {
+  if (!confirm('¿Borrar TODO? Esto quitará audio, sincronización y ajustes.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  try { await idbDelete(IDB_AUDIO_KEY); } catch(e){}
+  try { await idbDelete(IDB_SYNC_KEY); } catch(e){}
+  clearAudio(true);
+  clearSync();
+  STATE.avatar = 1;
+  STATE.poseId = 'normal';
+  STATE.renderedPoseId = 'normal';
+  STATE.zoom = 1.0;
+  STATE.offsetX = 0;
+  STATE.offsetY = 0;
+  STATE.vibration = 1.5;
+  STATE.vibBoostMultiplier = 1.5;
+  STATE.poseOverride = {};
+  STATE.allActive = { zoom: false, x: false, y: false, vib: false, boost: false };
+  STATE.avatarShadow = false;
+  STATE.posesVisiblePrerecorded = false;
+  STATE.transformPanelOpen = false;
+  STATE.imageCache = {};
+  STATE.imageStatus = {};
+  document.querySelectorAll('.avatar-opt').forEach(b => {
+    b.classList.toggle('active', b.dataset.avatar === '1');
+  });
+  avatarImg.classList.remove('with-shadow');
+  $('avatar-shadow').checked = false;
+  tpPanel.classList.remove('open');
+  tpToggle.classList.remove('active');
+  updateTransformUI();
+  updatePosesVisibility();
+  actualizarAvatar();
+  updateStatusRow();
+  showHint('Todo borrado');
+});
+
+/* ============================================================
+   INFO POSES
+   ============================================================ */
+function updatePosesInfo() {
+  let loaded = 0, missing = 0, unknown = 0;
+  POSES.forEach(p => {
+    VARIANTS.forEach(v => {
+      const key = imageKey(STATE.avatar, p.id, v);
+      if (STATE.imageStatus[key] === 'loaded') loaded++;
+      else if (STATE.imageStatus[key] === 'missing') missing++;
+      else unknown++;
+    });
+  });
+  const total = POSES.length * VARIANTS.length;
+  posesInfo.textContent = `Avatar ${STATE.avatar} · Cargadas: ${loaded}/${total} · Faltantes: ${missing} · Pendientes: ${unknown}`;
+}
+
+/* ============================================================
+   HINT
+   ============================================================ */
+let hintTimer = null;
+function showHint(text) {
+  hintEl.textContent = text;
+  hintEl.classList.add('show');
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => hintEl.classList.remove('show'), 3000);
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+async function init() {
+  const hadSave = loadState();
+
+  document.documentElement.style.setProperty('--bg-color', STATE.bgColor);
+  appEl.style.background = STATE.bgColor;
+  $('bgcolor').value = STATE.bgColor;
+  $('sens').value = STATE.sensitivity;      $('val-sens').textContent = STATE.sensitivity;
+  $('hold').value = STATE.mouthHold;        $('val-hold').textContent = STATE.mouthHold + ' ms';$('blink').value = STATE.blinkBase;       $('val-blink').textContent = STATE.blinkBase + ' s';$('val-blink-min').textContent = STATE.blinkBase;
+  $('val-blink-max').textContent = STATE.blinkBase + BLINK_JITTER;
+  $('oscv').value = STATE.oscVertical;      $('val-oscv').textContent = STATE.oscVertical + ' px';$('oscx').value = STATE.oscHorizontal;    $('val-oscx').textContent = STATE.oscHorizontal + ' px';$('osct').value = STATE.oscSpeed;         $('val-osct').textContent = STATE.oscSpeed.toFixed(1) + 'x';$('avatar-shadow').checked = STATE.avatarShadow;
+  avatarImg.classList.toggle('with-shadow', STATE.avatarShadow);
+
+  tpPanel.classList.toggle('open', STATE.transformPanelOpen);
+  tpToggle.classList.toggle('active', STATE.transformPanelOpen);
+  updateTransformUI();
+
+  document.querySelectorAll('.avatar-opt').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.avatar,10) === STATE.avatar);
+  });
+
+  STATE.mode = 'prerecorded';
+  modeBadge.textContent = '📼 PREGRABADO';
+  modeBadge.classList.remove('live');
+  updatePosesVisibility();
+
+  updateStatusRow();
+  updateSyncUI();
+  updatePosesInfo();
+  updateAudioUI();
+  updateVibeToggleUI();
+  actualizarAvatar();
+  scheduleBlink();
+  requestAnimationFrame(motionLoop);
+
+  preloadPose(STATE.avatar, STATE.poseId);
+
+  setTimeout(() => {
+    preloadAllPoses(STATE.avatar).then(() => {
+      updatePosesInfo();
+      actualizarAvatar();
+    });
+  }, 500);
+
+  showHint(hadSave ? 'Estado restaurado · cargando poses...' : 'Cargando poses...');
+
+  await restoreSavedAudio();
+  await restoreSavedSync();
+
+  const p = await checkPermission();
+  if (p === 'denied') {
+    showPermissionHelp('🚫 Micrófono bloqueado',
+      `Toca el <b>candado 🔒</b> junto a la URL y cámbialo a <b>"Permitir"</b>, luego recarga.`);
+  }
+}
+init();
+
+window.addEventListener('beforeunload', () => {
+  if (audioLoaded && audioEl) {
+    lastSavedPosition = audioEl.currentTime || 0;
+    saveAudioMeta();
+  }
+});
+window.addEventListener('pagehide', () => {
+  if (audioLoaded && audioEl) {
+    lastSavedPosition = audioEl.currentTime || 0;
+    saveAudioMeta();
+  }
+});
+</script>
+</body>
+</html>
